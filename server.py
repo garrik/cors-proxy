@@ -24,13 +24,20 @@ method_requests_mapping = {
 def proxy(url):
 
     if flask.request.method == 'OPTIONS':
+        print(f"Sending fake preflight response to {flask.request.method} {url}")
         return _build_cors_preflight_response()
 
-    requests_function = method_requests_mapping[flask.request.method]
-    request = requests_function(url, stream=True, params=flask.request.args, headers=flask.request.headers)
-    response = flask.Response(flask.stream_with_context(request.iter_content()),
-                              content_type=request.headers['content-type'],
-                              status=request.status_code)
+    print(f"Sending {flask.request.method} {url}")
+    # print(f"Sending {flask.request.method} {url} with headers: {flask.request.headers} and data {flask.request.form}")
+    r = requests.request(flask.request.method, url, params=flask.request.args, stream=True, headers=flask.request.headers, allow_redirects=False, data=flask.request.form)
+    print(f"Got {r.status_code} response from {url}")
+    headers = dict(r.raw.headers)
+    def generate():
+        for chunk in r.raw.stream(decode_content=False):
+            yield chunk
+    response = flask.Response(generate(), headers=headers)
+    response.status_code = r.status_code
+    # response.headers['Content-Security-Policy']='default-src \'self\' http://*; connect-src *;'
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
