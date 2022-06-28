@@ -10,3 +10,7 @@ Example: Access `https://jsonplaceholder.typicode.com/posts` with `http://127.0.
 
 Thanks to:
 https://gist.github.com/vulcan25/bdff17a1ea2e19efc75e43be34f7d3f3
+
+
+# dependencies
+pip install -U requests[socks]
