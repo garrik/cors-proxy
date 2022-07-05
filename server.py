@@ -32,7 +32,7 @@ X_HEADER_FAKE_PREFLIGHT = "X-cp-fake-preflight" # send a fake preflight response
 
 @app.route('/<path:url>', methods=method_requests_mapping.keys())
 def proxy(url):
-
+    '''The proxy endpoint'''
     if _is_fake_preflight(flask.request) and flask.request.method == 'OPTIONS':
         print(f"Sending fake preflight response to {flask.request.method} {url}")
         return _build_cors_preflight_response()
@@ -84,13 +84,13 @@ def _build_cors_preflight_response():
     return response
 
 def _is_fake_preflight(request):
-    return request.headers.get(X_HEADER_FAKE_PREFLIGHT) == None
+    return request.headers.get(X_HEADER_FAKE_PREFLIGHT) is None
 
 # https://stackoverflow.com/questions/12601316/how-to-make-python-requests-work-via-socks-proxy
 def _build_proxies(request):
     proxies = {}
     proxies_string = request.headers.get(X_HEADER_PROXIES)
-    if proxies_string == None or len(proxies_string) == 0:
+    if proxies_string is None or len(proxies_string) == 0:
         return None
     proxies_pairs=proxies_string.split(',')
     for pair in proxies_pairs:
