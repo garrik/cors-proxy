@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Setup a proxy to allow debugging of api not accessible because of cors and/or residing in inaccessible network
+Setup a proxy to allow debugging of api not accessible because of cors
+and/or residing in inaccessible network
+
+Thanks to
+https://gist.github.com/stewartadam/f59f47614da1a9ab62d9881ae4fbe656
 """
 
 
@@ -35,9 +39,30 @@ def proxy(url):
 
     proxies = _build_proxies(flask.request)
 
-    print(f"Sending {flask.request.method} {url}")
-    # print(f"Sending {flask.request.method} {url} with headers: {flask.request.headers} and data {flask.request.form}")
-    r = requests.request(flask.request.method, url, params=flask.request.args, stream=True, headers=flask.request.headers, allow_redirects=False, data=flask.request.form, proxies=proxies)
+    print(f"> {flask.request.method} {url}")
+    # for header, value in flask.request.headers:
+    #     print(f"> {header}: {value}")
+    # print()
+    # for field, value in flask.request.form.items():
+    #     print(f"> {field}={value}")
+    # print()
+    # print()
+
+    # when content type is multipart/form-data, remove Content-Type header as workaround 
+    # or post data is not sent correctly
+    # TODO: surely we can do better
+    headers = flask.request.headers
+    if 'multipart/form-data' in headers.get('Content-Type'):
+        headers = { k: v for k, v in flask.request.headers.items() if k not in ['Content-Type'] }
+
+    r = requests.request(flask.request.method,
+                         url,
+                         params=flask.request.args,
+                         stream=True,
+                         headers=headers,
+                         allow_redirects=False,
+                         data=flask.request.form,
+                         proxies=proxies)
     print(f"Got {r.status_code} response from {url}")
     headers = dict(r.raw.headers)
     def generate():
