@@ -33,6 +33,7 @@ X_HEADER_FAKE_PREFLIGHT = "X-cp-fake-preflight" # send a fake preflight response
 @app.route('/<path:url>', methods=method_requests_mapping.keys())
 def proxy(url):
     '''The proxy endpoint'''
+
     if _is_fake_preflight(flask.request) and flask.request.method == 'OPTIONS':
         print(f"Sending fake preflight response to {flask.request.method} {url}")
         return _build_cors_preflight_response()
@@ -48,12 +49,24 @@ def proxy(url):
     # print()
     # print()
 
-    # when content type is multipart/form-data, remove Content-Type header as workaround 
-    # or post data is not sent correctly
-    # TODO: surely we can do better
     headers = flask.request.headers
-    if 'multipart/form-data' in headers.get('Content-Type'):
-        headers = { k: v for k, v in flask.request.headers.items() if k not in ['Content-Type'] }
+    data = flask.request.data
+
+    # request body forwarding is for common cases only
+    if flask.request.method in ['POST', 'PUT', 'PATCH']:
+        content_type = headers.get('Content-Type')
+        content_type = content_type.lower() if content_type is not None else ''
+        if content_type.startswith('multipart/form-data'):
+            # body of request is not sent correctly when content type is multipart/form-data,
+            # workaround: removing Content-Type header may fix this or may not work
+            # TODO: surely we can do better
+            headers = { k: v for k, v in flask.request.headers.items() if k not in ['Content-Type'] }
+            data=flask.request.form
+            for header, value in headers.items():
+                print(f">> {header}: {value}")
+            print()
+        elif content_type.startswith('application/x-www-form-urlencoded'):
+            data = flask.request.form
 
     r = requests.request(flask.request.method,
                          url,
@@ -61,7 +74,7 @@ def proxy(url):
                          stream=True,
                          headers=headers,
                          allow_redirects=False,
-                         data=flask.request.form,
+                         data=data,
                          proxies=proxies)
     print(f"Got {r.status_code} response from {url}")
     headers = dict(r.raw.headers)
@@ -75,6 +88,7 @@ def proxy(url):
     return response
 
 def _build_cors_preflight_response():
+    '''Build fake response for CORS preflight request'''
     response = make_response()
     response.headers.add("Access-Control-Allow-Origin", "*")
     # Note that the Authorization header can't be wildcarded and always needs to be listed explicitly.
@@ -88,6 +102,7 @@ def _is_fake_preflight(request):
 
 # https://stackoverflow.com/questions/12601316/how-to-make-python-requests-work-via-socks-proxy
 def _build_proxies(request):
+    '''Populate proxy list from request headers'''
     proxies = {}
     proxies_string = request.headers.get(X_HEADER_PROXIES)
     if proxies_string is None or len(proxies_string) == 0:
